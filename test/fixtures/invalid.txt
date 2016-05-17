@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<Document 
+    xmlns="http://www.apple.com/itms/">
+    <Protocol>
+        <plist version="1.0">
+            <dict>
+                <key>pings</key>
+                <array></array>
+                <key>failureType</key>
+                <string></string>
+                <key>customerTitleMessage</key>
+                <string>Item Not Available</string>
+                <key>customerMessage</key>
+                <string>The item you&#39;ve requested is not currently available in the U.S. store.</string>
+                <key>m-allowed</key>
+                <false/>
+            </dict>
+        </plist>
+    </Protocol>
+    <Dialog>
+        <plist version="1.0">
+            <dict>
+                <key>m-allowed</key>
+                <false/>
+                <key>message</key>
+                <string>Item Not Available</string>
+                <key>explanation</key>
+                <string>The item you&#39;ve requested is not currently available in the U.S. store.</string>
+                <key>defaultButton</key>
+                <string>ok</string>
+                <key>okButtonString</key>
+                <string>OK</string>
+            </dict>
+        </plist>
+    </Dialog>
+</Document>    
+
+
+
+
+    
+    
+
+
+
+
+        
