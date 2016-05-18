@@ -74,7 +74,7 @@ describe('unit testing', () => {
 				expect(converted).to.have.a.property('reviews');
 				expect(converted).to.not.have.a.property('error');
 				expect(_.isArray(converted.reviews)).to.be.true;
-				expect(converted.reviews.length).to.equal(40);
+				expect(converted.reviews.length).to.equal(25);
 				done();
 			});
 		});
@@ -94,8 +94,8 @@ describe('unit testing', () => {
 		it('should log an error when given an invalid response object', (done) => {
 			invalidObjPromise.then((invalidObj) => {
 				const converted = Collector.__get__('objectToReviews')(invalidObj, 'an.app.id', fakeEmitter);
-				expect(typeof converted).to.equal('undefined');
-				expect(errSpy).to.be.calledWith('Unexpected response - app was not valid');
+				expect(converted).to.be.an('object');
+				expect(converted).to.have.a.property('error');
 				done();
 			});
 		});
