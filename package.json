@@ -4,7 +4,7 @@
   "description": "",
   "main": "./lib/index.js",
   "scripts": {
-    "test": "npm run compile && mocha --compilers js:babel-core/register --timeout 15000",
+    "test": "npm run compile && mocha --compilers js:babel-core/register --timeout 2000",
     "compile": "babel -d lib/ src/",
     "prepublish": "npm run compile"
   },
@@ -21,6 +21,7 @@
   "dependencies": {
     "bluebird": "^3.4.0",
     "lodash": "^4.12.0",
+    "moment": "^2.13.0",
     "node-webcrawler": "^0.7.3",
     "xml2js": "^0.4.16"
   },
