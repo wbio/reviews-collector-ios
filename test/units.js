@@ -9,6 +9,7 @@ const fs = require('fs');
 const path = require('path');
 const EventEmitter = require('events').EventEmitter;
 chai.use(require('sinon-chai'));
+chai.use(require('chai-as-promised'));
 
 /*
  * Reconfigure module for our tests
@@ -42,72 +43,87 @@ describe('unit testing', () => {
 	describe('parsing response to an object', () => {
 		it('should parse a valid XML response to an object', () => {
 			const val = Collector.__get__('responseToObject')(validResponseXml);
-			expect(typeof val).to.equal('object');
+			return expect(val).to.eventually.be.an('object');
 		});
 
 		it('should parse a valid XML response with no reviews to an object', () => {
 			const val = Collector.__get__('responseToObject')(noReviewsResponseXml);
-			expect(typeof val).to.equal('object');
+			return expect(val).to.eventually.be.an('object');
 		});
 
 		it('should parse an invalid XML response to an object', () => {
 			const val = Collector.__get__('responseToObject')(invalidResponseXml);
-			expect(typeof val).to.equal('object');
+			return expect(val).to.eventually.be.an('object');
 		});
 	});
 
 	describe('parsing XML into reviews', () => {
 		// Get our response objects
-		const validObj = Collector.__get__('responseToObject')(validResponseXml);
-		const invalidObj = Collector.__get__('responseToObject')(invalidResponseXml);
-		const noReviewsObj = Collector.__get__('responseToObject')(noReviewsResponseXml);
+		const validObjPromise = Collector.__get__('responseToObject')(validResponseXml);
+		const invalidObjPromise = Collector.__get__('responseToObject')(invalidResponseXml);
+		const noReviewsObjPromise = Collector.__get__('responseToObject')(noReviewsResponseXml);
 		// Create our fake emitter
 		const fakeEmitter = {
 			emit: () => null,
 		};
 
-		it('should parse a valid response object into an array of reviews', () => {
-			const converted = Collector.__get__('objectToReviews')(validObj, 'an.app.id', fakeEmitter);
-			expect(converted).to.be.an('object');
-			expect(converted).to.have.a.property('reviews');
-			expect(converted).to.not.have.a.property('error');
-			expect(_.isArray(converted.reviews)).to.be.true;
-			expect(converted.reviews.length).to.equal(40);
+		it('should parse a valid response object into an array of reviews', (done) => {
+			validObjPromise.then((validObj) => {
+				const converted = Collector.__get__('objectToReviews')(validObj, 'an.app.id', fakeEmitter);
+				expect(converted).to.be.an('object');
+				expect(converted).to.have.a.property('reviews');
+				expect(converted).to.not.have.a.property('error');
+				expect(_.isArray(converted.reviews)).to.be.true;
+				expect(converted.reviews.length).to.equal(40);
+				done();
+			});
 		});
 
-		it('should parse a valid response object with no reviews into an empty array of reviews', () => {
-			const converted = Collector.__get__('objectToReviews')(noReviewsObj, 'an.app.id', fakeEmitter);
-			expect(converted).to.be.an('object');
-			expect(converted).to.have.a.property('reviews');
-			expect(converted).to.not.have.a.property('error');
-			expect(_.isArray(converted.reviews)).to.be.true;
-			expect(converted.reviews.length).to.equal(0);
+		it('should parse a valid response object with no reviews into an empty array of reviews', (done) => {
+			noReviewsObjPromise.then((noReviewsObj) => {
+				const converted = Collector.__get__('objectToReviews')(noReviewsObj, 'an.app.id', fakeEmitter);
+				expect(converted).to.be.an('object');
+				expect(converted).to.have.a.property('reviews');
+				expect(converted).to.not.have.a.property('error');
+				expect(_.isArray(converted.reviews)).to.be.true;
+				expect(converted.reviews.length).to.equal(0);
+				done();
+			});
 		});
 
-		it('should log an error when given an invalid response object', () => {
-			const converted = Collector.__get__('objectToReviews')(invalidObj, 'an.app.id', fakeEmitter);
-			expect(typeof converted).to.equal('undefined');
-			expect(errSpy).to.be.calledWith('Unexpected response - app was not valid');
+		it('should log an error when given an invalid response object', (done) => {
+			invalidObjPromise.then((invalidObj) => {
+				const converted = Collector.__get__('objectToReviews')(invalidObj, 'an.app.id', fakeEmitter);
+				expect(typeof converted).to.equal('undefined');
+				expect(errSpy).to.be.calledWith('Unexpected response - app was not valid');
+				done();
+			});
 		});
 
-		it('should emit a "review" event for each review', () => {
+		it('should emit a "review" event for each review', (done) => {
 			// Set up our spy on the event emitter
 			const emitterSpy = sinon.spy();
 			const emitter = new EventEmitter();
 			emitter.on('review', emitterSpy);
 			// Call the method
-			Collector.__get__('objectToReviews')(validObj, 'an.app.id', emitter);
-			expect(emitterSpy.callCount).to.equal(25);
+			validObjPromise.then((validObj) => {
+				Collector.__get__('objectToReviews')(validObj, 'an.app.id', emitter);
+				expect(emitterSpy.callCount).to.equal(25);
+				done();
+			});
 		});
 
-		it('should emit a "page complete" event at the end of the page', () => {
+		it('should emit a "page complete" event at the end of the page', (done) => {
 			// Set up our spy on the event emitter
 			const emitterSpy = sinon.spy();
 			const emitter = new EventEmitter();
 			emitter.on('page complete', emitterSpy);
 			// Call the method
-			Collector.__get__('objectToReviews')(validObj, 'an.app.id', emitter);
-			expect(emitterSpy).to.be.calledOnce;
+			validObjPromise.then((validObj) => {
+				Collector.__get__('objectToReviews')(validObj, 'an.app.id', emitter);
+				expect(emitterSpy).to.be.calledOnce;
+				done();
+			});
 		});
 	});
 });

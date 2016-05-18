@@ -2,8 +2,9 @@
 
 const _ = require('lodash');
 const Crawler = require('node-webcrawler');
+const P = require('bluebird');
+const parseXml = P.promisify(require('xml2js').parseString);
 const EventEmitter = require('events').EventEmitter;
-const XMLParser = require('xml2js').parseString;
 
 
 class Collector {
@@ -28,7 +29,7 @@ class Collector {
 module.exports = Collector;
 
 function responseToObject(response) {
-
+	return parseXml(response.body);
 }
 
 function objectToReviews(obj, appId, emitter) {
