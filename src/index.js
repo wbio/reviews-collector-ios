@@ -24,7 +24,89 @@ class Collector {
 	}
 
 	collect() {
+		// Preserve our reference to 'this'
+		const self = this;
 
+		// Setup the Crawler instance
+		const c = new Crawler({
+			maxConnections: 1,
+			rateLimits: self.options.delay,
+			userAgent: self.options.userAgent,
+			followRedirect: true,
+			followAllRedirects: true,
+			callback: function processRequest(error, result) {
+				if (error) {
+					console.error(`Could not complete the request: ${error}`);
+					requeue(result.options.pageNum);
+				} else {
+					parse(result, result.options.pageNum);
+				}
+			},
+		});
+
+		// Queue the first page
+		queue(0);
+
+		/**
+		 * Add a page to the Crawler queue to be parsed
+		 * @param {number} pageNum - The page number to be collected (0-indexed)
+		 */
+		function queue(pageNum) {
+			const url = `https://itunes.apple.com/WebObjects/MZStore.woa/wa/viewContentsUserReviews?id=${self.appId}&pageNumber='${pageNum}&sortOrdering=4&onlyLatestVersion=false&type=Purple+Software`;
+			// Add the url to the Crawler queue
+			c.queue({
+				uri: url,
+				headers: {
+					'User-Agent': self.options.userAgent,
+					'X-Apple-Store-Front': '143441-1', // TODO: Allow for multiple countries
+					'X-Apple-Tz': '-14400',
+				},
+				pageNum: pageNum,
+			});
+		}
+
+		/**
+		 * Parse a reviews page and emit review objects
+		 * @param {string} result - The page XML
+		 * @param {number} pageNum - The number of the page that is being parsed
+		 */
+		function parse(result, pageNum) {
+			const obj = responseToObject(result);
+			if (typeof html !== 'object') {
+				// Something went wrong, try requeueing
+				requeue(pageNum);
+			} else {
+				// We got a valid response, proceed
+				const converted = objectToReviews(obj, self.appId, self.emitter);
+				if (converted.error) {
+					console.error(`Could not turn response into reviews: ${converted.error}`);
+					requeue(pageNum);
+				} else {
+					// Reset retries
+					self.retries = 0;
+					// Queue the next page if we're allowed
+					const nextPage = pageNum + 1;
+					if (converted.reviews.length > 0 && nextPage < self.options.maxPages - 1) {
+						queue(nextPage);
+					} else {
+						self.emitter.emit('done collecting');
+					}
+				}
+			}
+		}
+
+		/**
+		 * Requeue a page if we aren't over the retries limit
+		 * @param {number} pageNum - The number of the page to requeue
+		 */
+		function requeue(pageNum) {
+			self.retries++;
+			if (self.retries < self.options.maxRetries) {
+				queue(pageNum);
+			} else {
+				self.emitter.emit('done collecting', new Error('Retry limit reached'));
+			}
+		}
 	}
 }
 module.exports = Collector;
