@@ -52,7 +52,7 @@ class Collector {
 		 * @param {number} pageNum - The page number to be collected (0-indexed)
 		 */
 		function queue(pageNum) {
-			const url = `https://itunes.apple.com/WebObjects/MZStore.woa/wa/viewContentsUserReviews?id=${self.appId}&pageNumber='${pageNum}&sortOrdering=4&onlyLatestVersion=false&type=Purple+Software`;
+			const url = `https://itunes.apple.com/WebObjects/MZStore.woa/wa/viewContentsUserReviews?id=${self.appId}&pageNumber=${pageNum}&sortOrdering=4&onlyLatestVersion=false&type=Purple+Software`;
 			// Add the url to the Crawler queue
 			c.queue({
 				uri: url,
@@ -71,28 +71,30 @@ class Collector {
 		 * @param {number} pageNum - The number of the page that is being parsed
 		 */
 		function parse(result, pageNum) {
-			const obj = responseToObject(result);
-			if (typeof html !== 'object') {
-				// Something went wrong, try requeueing
-				requeue(pageNum);
-			} else {
-				// We got a valid response, proceed
-				const converted = objectToReviews(obj, self.appId, self.emitter);
-				if (converted.error) {
-					console.error(`Could not turn response into reviews: ${converted.error}`);
-					requeue(pageNum);
-				} else {
-					// Reset retries
-					self.retries = 0;
-					// Queue the next page if we're allowed
-					const nextPage = pageNum + 1;
-					if (converted.reviews.length > 0 && nextPage < self.options.maxPages - 1) {
-						queue(nextPage);
+			responseToObject(result)
+				.then((obj) => {
+					if (typeof obj !== 'object') {
+						// Something went wrong, try requeueing
+						requeue(pageNum);
 					} else {
-						self.emitter.emit('done collecting');
+						// We got a valid response, proceed
+						const converted = objectToReviews(obj, self.appId, self.emitter);
+						if (converted.error) {
+							console.error(`Could not turn response into reviews: ${converted.error.stack}`);
+							requeue(pageNum);
+						} else {
+							// Reset retries
+							self.retries = 0;
+							// Queue the next page if we're allowed
+							const nextPage = pageNum + 1;
+							if (converted.reviews.length > 0 && nextPage < self.options.maxPages - 1) {
+								queue(nextPage);
+							} else {
+								self.emitter.emit('done collecting');
+							}
+						}
 					}
-				}
-			}
+				});
 		}
 
 		/**
@@ -107,6 +109,15 @@ class Collector {
 				self.emitter.emit('done collecting', new Error('Retry limit reached'));
 			}
 		}
+	}
+
+	/**
+	 * Attach event handlers to the Collector's event emitter
+	 * @param {string} event - The name of the event to listen for
+	 * @param {funtion} action - The function to be executed each time this event is emitted
+	 */
+	on(event, action) {
+		this.emitter.on(event, action);
 	}
 }
 module.exports = Collector;
