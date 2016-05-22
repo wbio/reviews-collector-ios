@@ -78,7 +78,7 @@ class Collector {
 						requeue(pageNum);
 					} else {
 						// We got a valid response, proceed
-						const converted = objectToReviews(obj, self.appId, self.emitter);
+						const converted = objectToReviews(obj, self.appId, pageNum, self.emitter);
 						if (converted.error) {
 							console.error(`Could not turn response into reviews: ${converted.error.stack}`);
 							requeue(pageNum);
@@ -90,7 +90,10 @@ class Collector {
 							if (converted.reviews.length > 0 && nextPage < self.options.maxPages - 1) {
 								queue(nextPage);
 							} else {
-								self.emitter.emit('done collecting');
+								self.emitter.emit('done collecting', {
+									appId: self.appId,
+									pageNum: pageNum,
+								});
 							}
 						}
 					}
@@ -106,7 +109,11 @@ class Collector {
 			if (self.retries < self.options.maxRetries) {
 				queue(pageNum);
 			} else {
-				self.emitter.emit('done collecting', new Error('Retry limit reached'));
+				self.emitter.emit('done collecting', {
+					appId: self.appId,
+					pageNum: pageNum,
+					error: new Error('Retry limit reached'),
+				});
 			}
 		}
 	}
@@ -126,7 +133,7 @@ function responseToObject(response) {
 	return parseXml(response.body);
 }
 
-function objectToReviews(obj, appId, emitter) {
+function objectToReviews(obj, appId, pageNum, emitter) {
 	try {
 		const rootElem = obj
 			.Document
@@ -140,7 +147,7 @@ function objectToReviews(obj, appId, emitter) {
 		const reviewElems = rootElem
 			.VBoxView[0]
 			.VBoxView;
-		const reviews = getReviews(reviewElems, appId, emitter);
+		const reviews = getReviews(reviewElems, appId, pageNum, emitter);
 		return {
 			reviews: reviews,
 		};
@@ -149,7 +156,7 @@ function objectToReviews(obj, appId, emitter) {
 	}
 }
 
-function getReviews(reviewElems, appId, emitter) {
+function getReviews(reviewElems, appId, pageNum, emitter) {
 	const reviews = [];
 	_.forEach(reviewElems, (reviewElem) => {
 		const review = {};
@@ -173,10 +180,18 @@ function getReviews(reviewElems, appId, emitter) {
 		// Add it to our reviews array
 		reviews.push(review);
 		// Let our listener(s) know
-		emitter.emit('review', review);
+		emitter.emit('review', {
+			appId: appId,
+			pageNum: pageNum,
+			review: review,
+		});
 	});
 	// Let our listener(s) know we finished a page
-	emitter.emit('page complete', reviews);
+	emitter.emit('page complete', {
+		appId: appId,
+		pageNum: pageNum,
+		reviews: reviews,
+	});
 	// Return our reviews
 	return reviews;
 }
