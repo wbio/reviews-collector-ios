@@ -6,6 +6,7 @@ const moment = require('moment');
 const P = require('bluebird');
 const parseXml = P.promisify(require('xml2js').parseString);
 const EventEmitter = require('events').EventEmitter;
+const firstPage = 0;
 
 
 class Collector {
@@ -18,20 +19,36 @@ class Collector {
 			maxRetries: 3,
 		};
 		this.options = _.assign(defaults, options);
+		this.apps = {};
 		if (_.isArray(apps)) {
-			this.apps = apps;
+			_.forEach(apps, (appId) => {
+				if (typeof appId !== 'string') {
+					throw new Error('App IDs must be strings');
+				}
+				this.apps[appId] = {
+					appId: appId,
+					retries: 0,
+					pageNum: firstPage,
+				};
+			});
 		} else if (_.isString(apps)) {
-			this.apps = [apps];
+			// 'apps' is a single app ID string
+			this.apps[apps] = {
+				appId: apps,
+				retries: 0,
+				pageNum: firstPage,
+			};
 		} else {
 			throw new Error('You must provide either a string or an array for the \'apps\' argument');
 		}
 		this.emitter = new EventEmitter();
-		this.retries = {};
 	}
 
 	collect() {
 		// Preserve our reference to 'this'
 		const self = this;
+		// Get a list of app IDs
+		const appIds = _.keys(self.apps);
 
 		// Setup the Crawler instance
 		const c = new Crawler({
@@ -50,17 +67,27 @@ class Collector {
 			},
 		});
 
-		// Queue the first page for each app
-		self.apps.forEach((appId) => {
-			self.retries[appId] = 0;
-			queue(appId, 0);
-		});
+		// Queue the first app
+		processNextApp();
+
+		/**
+		 * Collect reviews for the next app in the list (if one exists)
+		 */
+		function processNextApp() {
+			if (appIds.length > 0) {
+				const nextApp = appIds.shift();
+				queue(nextApp, firstPage);
+			} else {
+				self.emitter.emit('done with apps');
+			}
+		}
 
 		/**
 		 * Add a page to the Crawler queue to be parsed
 		 * @param {number} pageNum - The page number to be collected (0-indexed)
 		 */
 		function queue(appId, pageNum) {
+			self.apps[appId].pageNum = pageNum;
 			const url = `https://itunes.apple.com/WebObjects/MZStore.woa/wa/viewContentsUserReviews?id=${appId}&pageNumber=${pageNum}&sortOrdering=4&onlyLatestVersion=false&type=Purple+Software`;
 			// Add the url to the Crawler queue
 			c.queue({
@@ -94,16 +121,20 @@ class Collector {
 							requeue(appId, pageNum);
 						} else {
 							// Reset retries
-							self.retries[appId] = 0;
+							self.apps[appId].retries = 0;
 							// Queue the next page if we're allowed
 							const nextPage = pageNum + 1;
 							if (converted.reviews.length > 0 && nextPage < self.options.maxPages) {
 								queue(appId, nextPage);
 							} else {
+								// Emit the 'done collecting' event
 								self.emitter.emit('done collecting', {
 									appId: appId,
 									pageNum: pageNum,
+									appsRemaining: appIds.length,
 								});
+								// Move on to the next app
+								processNextApp();
 							}
 						}
 					}
@@ -115,15 +146,19 @@ class Collector {
 		 * @param {number} pageNum - The number of the page to requeue
 		 */
 		function requeue(appId, pageNum) {
-			self.retries[appId]++;
-			if (self.retries[appId] < self.options.maxRetries) {
+			self.apps[appId].retries++;
+			if (self.apps[appId].retries < self.options.maxRetries) {
 				queue(appId, pageNum);
 			} else {
+				// Emit the 'done collecting' event with an error
 				self.emitter.emit('done collecting', {
 					appId: appId,
 					pageNum: pageNum,
+					appsRemaining: appIds.length,
 					error: new Error('Retry limit reached'),
 				});
+				// Move on to the next app
+				processNextApp();
 			}
 		}
 	}
