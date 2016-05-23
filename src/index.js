@@ -53,7 +53,6 @@ class Collector {
 		// Setup the Crawler instance
 		const c = new Crawler({
 			maxConnections: 1,
-			rateLimits: self.options.delay,
 			userAgent: self.options.userAgent,
 			followRedirect: true,
 			followAllRedirects: true,
@@ -87,19 +86,22 @@ class Collector {
 		 * @param {number} pageNum - The page number to be collected (0-indexed)
 		 */
 		function queue(appId, pageNum) {
-			self.apps[appId].pageNum = pageNum;
-			const url = `https://itunes.apple.com/WebObjects/MZStore.woa/wa/viewContentsUserReviews?id=${appId}&pageNumber=${pageNum}&sortOrdering=4&onlyLatestVersion=false&type=Purple+Software`;
-			// Add the url to the Crawler queue
-			c.queue({
-				uri: url,
-				headers: {
-					'User-Agent': self.options.userAgent,
-					'X-Apple-Store-Front': '143441-1', // TODO: Allow for multiple countries
-					'X-Apple-Tz': '-14400',
-				},
-				appId: appId,
-				pageNum: pageNum,
-			});
+			// Delay the request for the specified # of milliseconds
+			setTimeout(() => {
+				self.apps[appId].pageNum = pageNum;
+				const url = `https://itunes.apple.com/WebObjects/MZStore.woa/wa/viewContentsUserReviews?id=${appId}&pageNumber=${pageNum}&sortOrdering=4&onlyLatestVersion=false&type=Purple+Software`;
+				// Add the url to the Crawler queue
+				c.queue({
+					uri: url,
+					headers: {
+						'User-Agent': self.options.userAgent,
+						'X-Apple-Store-Front': '143441-1', // TODO: Allow for multiple countries
+						'X-Apple-Tz': '-14400',
+					},
+					appId: appId,
+					pageNum: pageNum,
+				});
+			}, self.options.delay);
 		}
 
 		/**
