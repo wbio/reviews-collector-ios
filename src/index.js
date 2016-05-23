@@ -343,7 +343,7 @@ function getReviewDateAndVersion(reviewElem) {
 	const date = datePatt.exec(dateVersion)[1];
 	return {
 		version: version,
-		date: moment(date, 'MMM D, YYYY').format(),
+		date: moment(date, 'MMM D, YYYY').toDate(),
 	};
 }
 
