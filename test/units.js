@@ -112,19 +112,6 @@ describe('unit testing', () => {
 				done();
 			});
 		});
-
-		it('should emit a "page complete" event at the end of the page', (done) => {
-			// Set up our spy on the event emitter
-			const emitterSpy = sinon.spy();
-			const emitter = new EventEmitter();
-			emitter.on('page complete', emitterSpy);
-			// Call the method
-			validObjPromise.then((validObj) => {
-				Collector.__get__('objectToReviews')(validObj, 'an.app.id', 0, emitter);
-				expect(emitterSpy).to.be.calledOnce;
-				done();
-			});
-		});
 	});
 });
 /* eslint-enable no-undef, max-len, no-unused-expressions */

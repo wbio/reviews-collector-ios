@@ -12,6 +12,9 @@ const firstPage = 0;
 class Collector {
 
 	constructor(apps, options) {
+		if (options && options.maxPages && options.checkBeforeContine) {
+			console.error('Warning: The \'maxPages\' option will be ignored when \'checkBeforeContine\' is present');
+		}
 		const defaults = {
 			maxPages: 5,
 			userAgent: 'iTunes/12.1.2 (Macintosh; OS X 10.10.3) AppleWebKit/0600.5.17',
@@ -49,6 +52,10 @@ class Collector {
 		const self = this;
 		// Get a list of app IDs
 		const appIds = _.keys(self.apps);
+		// Keep track of what we're processing
+		let currentApp;
+		let currentPage;
+		let nextStepDecided;	// Whether or not 'continue()' or 'stop()' has been called
 
 		// Setup the Crawler instance
 		const c = new Crawler({
@@ -59,9 +66,9 @@ class Collector {
 			callback: function processRequest(error, result) {
 				if (error) {
 					console.error(`Could not complete the request: ${error}`);
-					requeue(result.options.pageNum);
+					requeue();
 				} else {
-					parse(result, result.options.appId, result.options.pageNum);
+					parse(result);
 				}
 			},
 		});
@@ -74,8 +81,9 @@ class Collector {
 		 */
 		function processNextApp() {
 			if (appIds.length > 0) {
-				const nextApp = appIds.shift();
-				queue(nextApp, firstPage);
+				currentApp = appIds.shift();
+				currentPage = firstPage;
+				queuePage();
 			} else {
 				self.emitter.emit('done with apps');
 			}
@@ -85,11 +93,11 @@ class Collector {
 		 * Add a page to the Crawler queue to be parsed
 		 * @param {number} pageNum - The page number to be collected (0-indexed)
 		 */
-		function queue(appId, pageNum) {
+		function queuePage() {
 			// Delay the request for the specified # of milliseconds
 			setTimeout(() => {
-				self.apps[appId].pageNum = pageNum;
-				const url = `https://itunes.apple.com/WebObjects/MZStore.woa/wa/viewContentsUserReviews?id=${appId}&pageNumber=${pageNum}&sortOrdering=4&onlyLatestVersion=false&type=Purple+Software`;
+				self.apps[currentApp].pageNum = currentPage;
+				const url = `https://itunes.apple.com/WebObjects/MZStore.woa/wa/viewContentsUserReviews?id=${currentApp}&pageNumber=${currentPage}&sortOrdering=4&onlyLatestVersion=false&type=Purple+Software`;
 				// Add the url to the Crawler queue
 				c.queue({
 					uri: url,
@@ -98,45 +106,63 @@ class Collector {
 						'X-Apple-Store-Front': '143441-1', // TODO: Allow for multiple countries
 						'X-Apple-Tz': '-14400',
 					},
-					appId: appId,
-					pageNum: pageNum,
 				});
 			}, self.options.delay);
 		}
 
 		/**
 		 * Parse a reviews page and emit review objects
-		 * @param {string} result - The page XML
-		 * @param {number} pageNum - The number of the page that is being parsed
+		 * @param {string} result - The page response object
 		 */
-		function parse(result, appId, pageNum) {
+		function parse(result) {
 			responseToObject(result)
 				.then((obj) => {
 					if (typeof obj !== 'object') {
 						// Something went wrong, try requeueing
-						requeue(appId, pageNum);
+						requeue();
 					} else {
 						// We got a valid response, proceed
-						const converted = objectToReviews(obj, appId, pageNum, self.emitter);
+						const converted = objectToReviews(obj, currentApp, currentPage, self.emitter);
 						if (converted.error) {
 							console.error(`Could not turn response into reviews: ${converted.error}`);
-							requeue(appId, pageNum);
+							requeue();
 						} else {
+							const numReviewsFound = converted.reviews.length;
 							// Reset retries
-							self.apps[appId].retries = 0;
-							// Queue the next page if we're allowed
-							const nextPage = pageNum + 1;
-							if (converted.reviews.length > 0 && nextPage < self.options.maxPages) {
-								queue(appId, nextPage);
-							} else {
-								// Emit the 'done collecting' event
-								self.emitter.emit('done collecting', {
-									appId: appId,
-									pageNum: pageNum,
-									appsRemaining: appIds.length,
-								});
-								// Move on to the next app
-								processNextApp();
+							self.apps[currentApp].retries = 0;
+							// Let our listener(s) know we finished a page
+							const objToEmit = {
+								appId: currentApp,
+								pageNum: currentPage,
+								reviews: converted.reviews,
+							};
+							// Reset nextStepDecided
+							nextStepDecided = false;
+							if (self.options.checkBeforeContine) {
+								// stop() should always call stopProcessingApp()
+								objToEmit.stop = stopProcessingApp;
+								// If we had reviews, user can continue, if not, calling continue should move to next app
+								if (numReviewsFound > 0) {
+									objToEmit.continue = continueProcessingApp;
+								} else {
+									objToEmit.continue = stopProcessingApp;
+								}
+							}
+							// Emit the object
+							self.emitter.emit('page complete', objToEmit);
+							// If we don't have to wait for the user to tell us to continue, we can do it ourselves
+							if (!self.options.checkBeforeContine) {
+								// Queue the next page if we're allowed
+								if (numReviewsFound > 0 &&
+									(
+										self.options.maxPages === 0 ||
+										currentPage + 1 < self.options.maxPages + firstPage
+									)
+								) {
+									continueProcessingApp();
+								} else {
+									stopProcessingApp();
+								}
 							}
 						}
 					}
@@ -147,17 +173,50 @@ class Collector {
 		 * Requeue a page if we aren't over the retries limit
 		 * @param {number} pageNum - The number of the page to requeue
 		 */
-		function requeue(appId, pageNum) {
-			self.apps[appId].retries++;
-			if (self.apps[appId].retries < self.options.maxRetries) {
-				queue(appId, pageNum);
+		function requeue() {
+			self.apps[currentApp].retries++;
+			if (self.apps[currentApp].retries < self.options.maxRetries) {
+				queuePage();
 			} else {
 				// Emit the 'done collecting' event with an error
 				self.emitter.emit('done collecting', {
-					appId: appId,
-					pageNum: pageNum,
+					appId: currentApp,
+					pageNum: currentPage,
 					appsRemaining: appIds.length,
 					error: new Error('Retry limit reached'),
+				});
+				// Move on to the next app
+				processNextApp();
+			}
+		}
+
+		/**
+		 * Process the next page of the current app
+		 */
+		function continueProcessingApp() {
+			// Make sure that the user doesn't call both stop() and continue() for the same page
+			if (!nextStepDecided) {
+				// Set nextStepDecided to true
+				nextStepDecided = true;
+				// Increment currentPage and queue it
+				currentPage++;
+				queuePage();
+			}
+		}
+
+		/**
+		 * Stop processing the current app and go on to the next app
+		 */
+		function stopProcessingApp() {
+			// Make sure that the user doesn't call both stop() and continue() for the same page
+			if (!nextStepDecided) {
+				// Set nextStepDecided to true
+				nextStepDecided = true;
+				// Emit the 'done collecting' event
+				self.emitter.emit('done collecting', {
+					appId: currentApp,
+					pageNum: currentPage,
+					appsRemaining: appIds.length,
 				});
 				// Move on to the next app
 				processNextApp();
@@ -232,12 +291,6 @@ function getReviews(reviewElems, appId, pageNum, emitter) {
 			pageNum: pageNum,
 			review: review,
 		});
-	});
-	// Let our listener(s) know we finished a page
-	emitter.emit('page complete', {
-		appId: appId,
-		pageNum: pageNum,
-		reviews: reviews,
 	});
 	// Return our reviews
 	return reviews;
