@@ -12,6 +12,9 @@ const firstPage = 0;
 class Collector {
 
 	constructor(apps, options) {
+		if (options && options.maxPages && options.checkBeforeContine) {
+			console.error('Warning: The \'maxPages\' option will be ignored when \'checkBeforeContine\' is present');
+		}
 		const defaults = {
 			maxPages: 5,
 			userAgent: 'iTunes/12.1.2 (Macintosh; OS X 10.10.3) AppleWebKit/0600.5.17',
