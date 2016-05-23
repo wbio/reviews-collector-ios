@@ -55,6 +55,7 @@ class Collector {
 		// Keep track of what we're processing
 		let currentApp;
 		let currentPage;
+		let nextStepDecided;	// Whether or not 'continue()' or 'stop()' has been called
 
 		// Setup the Crawler instance
 		const c = new Crawler({
@@ -135,7 +136,10 @@ class Collector {
 								pageNum: currentPage,
 								reviews: converted.reviews,
 							};
+							// Reset nextStepDecided
+							nextStepDecided = false;
 							if (self.options.checkBeforeContine) {
+								// stop() should always call stopProcessingApp()
 								objToEmit.stop = stopProcessingApp;
 								// If we had reviews, user can continue, if not, calling continue should move to next app
 								if (numReviewsFound > 0) {
@@ -190,23 +194,33 @@ class Collector {
 		 * Process the next page of the current app
 		 */
 		function continueProcessingApp() {
-			// Increment currentPage and queue it
-			currentPage++;
-			queuePage();
+			// Make sure that the user doesn't call both stop() and continue() for the same page
+			if (!nextStepDecided) {
+				// Set nextStepDecided to true
+				nextStepDecided = true;
+				// Increment currentPage and queue it
+				currentPage++;
+				queuePage();
+			}
 		}
 
 		/**
 		 * Stop processing the current app and go on to the next app
 		 */
 		function stopProcessingApp() {
-			// Emit the 'done collecting' event
-			self.emitter.emit('done collecting', {
-				appId: currentApp,
-				pageNum: currentPage,
-				appsRemaining: appIds.length,
-			});
-			// Move on to the next app
-			processNextApp();
+			// Make sure that the user doesn't call both stop() and continue() for the same page
+			if (!nextStepDecided) {
+				// Set nextStepDecided to true
+				nextStepDecided = true;
+				// Emit the 'done collecting' event
+				self.emitter.emit('done collecting', {
+					appId: currentApp,
+					pageNum: currentPage,
+					appsRemaining: appIds.length,
+				});
+				// Move on to the next app
+				processNextApp();
+			}
 		}
 	}
 
