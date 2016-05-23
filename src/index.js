@@ -6,11 +6,12 @@ const moment = require('moment');
 const P = require('bluebird');
 const parseXml = P.promisify(require('xml2js').parseString);
 const EventEmitter = require('events').EventEmitter;
+const firstPage = 0;
 
 
 class Collector {
 
-	constructor(appId, options) {
+	constructor(apps, options) {
 		const defaults = {
 			maxPages: 5,
 			userAgent: 'iTunes/12.1.2 (Macintosh; OS X 10.10.3) AppleWebKit/0600.5.17',
@@ -18,19 +19,40 @@ class Collector {
 			maxRetries: 3,
 		};
 		this.options = _.assign(defaults, options);
-		this.appId = appId;
+		this.apps = {};
+		if (_.isArray(apps)) {
+			_.forEach(apps, (appId) => {
+				if (typeof appId !== 'string') {
+					throw new Error('App IDs must be strings');
+				}
+				this.apps[appId] = {
+					appId: appId,
+					retries: 0,
+					pageNum: firstPage,
+				};
+			});
+		} else if (_.isString(apps)) {
+			// 'apps' is a single app ID string
+			this.apps[apps] = {
+				appId: apps,
+				retries: 0,
+				pageNum: firstPage,
+			};
+		} else {
+			throw new Error('You must provide either a string or an array for the \'apps\' argument');
+		}
 		this.emitter = new EventEmitter();
-		this.retries = 0;
 	}
 
 	collect() {
 		// Preserve our reference to 'this'
 		const self = this;
+		// Get a list of app IDs
+		const appIds = _.keys(self.apps);
 
 		// Setup the Crawler instance
 		const c = new Crawler({
 			maxConnections: 1,
-			rateLimits: self.options.delay,
 			userAgent: self.options.userAgent,
 			followRedirect: true,
 			followAllRedirects: true,
@@ -39,30 +61,47 @@ class Collector {
 					console.error(`Could not complete the request: ${error}`);
 					requeue(result.options.pageNum);
 				} else {
-					parse(result, result.options.pageNum);
+					parse(result, result.options.appId, result.options.pageNum);
 				}
 			},
 		});
 
-		// Queue the first page
-		queue(0);
+		// Queue the first app
+		processNextApp();
+
+		/**
+		 * Collect reviews for the next app in the list (if one exists)
+		 */
+		function processNextApp() {
+			if (appIds.length > 0) {
+				const nextApp = appIds.shift();
+				queue(nextApp, firstPage);
+			} else {
+				self.emitter.emit('done with apps');
+			}
+		}
 
 		/**
 		 * Add a page to the Crawler queue to be parsed
 		 * @param {number} pageNum - The page number to be collected (0-indexed)
 		 */
-		function queue(pageNum) {
-			const url = `https://itunes.apple.com/WebObjects/MZStore.woa/wa/viewContentsUserReviews?id=${self.appId}&pageNumber=${pageNum}&sortOrdering=4&onlyLatestVersion=false&type=Purple+Software`;
-			// Add the url to the Crawler queue
-			c.queue({
-				uri: url,
-				headers: {
-					'User-Agent': self.options.userAgent,
-					'X-Apple-Store-Front': '143441-1', // TODO: Allow for multiple countries
-					'X-Apple-Tz': '-14400',
-				},
-				pageNum: pageNum,
-			});
+		function queue(appId, pageNum) {
+			// Delay the request for the specified # of milliseconds
+			setTimeout(() => {
+				self.apps[appId].pageNum = pageNum;
+				const url = `https://itunes.apple.com/WebObjects/MZStore.woa/wa/viewContentsUserReviews?id=${appId}&pageNumber=${pageNum}&sortOrdering=4&onlyLatestVersion=false&type=Purple+Software`;
+				// Add the url to the Crawler queue
+				c.queue({
+					uri: url,
+					headers: {
+						'User-Agent': self.options.userAgent,
+						'X-Apple-Store-Front': '143441-1', // TODO: Allow for multiple countries
+						'X-Apple-Tz': '-14400',
+					},
+					appId: appId,
+					pageNum: pageNum,
+				});
+			}, self.options.delay);
 		}
 
 		/**
@@ -70,30 +109,34 @@ class Collector {
 		 * @param {string} result - The page XML
 		 * @param {number} pageNum - The number of the page that is being parsed
 		 */
-		function parse(result, pageNum) {
+		function parse(result, appId, pageNum) {
 			responseToObject(result)
 				.then((obj) => {
 					if (typeof obj !== 'object') {
 						// Something went wrong, try requeueing
-						requeue(pageNum);
+						requeue(appId, pageNum);
 					} else {
 						// We got a valid response, proceed
-						const converted = objectToReviews(obj, self.appId, pageNum, self.emitter);
+						const converted = objectToReviews(obj, appId, pageNum, self.emitter);
 						if (converted.error) {
-							console.error(`Could not turn response into reviews: ${converted.error.stack}`);
-							requeue(pageNum);
+							console.error(`Could not turn response into reviews: ${converted.error}`);
+							requeue(appId, pageNum);
 						} else {
 							// Reset retries
-							self.retries = 0;
+							self.apps[appId].retries = 0;
 							// Queue the next page if we're allowed
 							const nextPage = pageNum + 1;
-							if (converted.reviews.length > 0 && nextPage < self.options.maxPages - 1) {
-								queue(nextPage);
+							if (converted.reviews.length > 0 && nextPage < self.options.maxPages) {
+								queue(appId, nextPage);
 							} else {
+								// Emit the 'done collecting' event
 								self.emitter.emit('done collecting', {
-									appId: self.appId,
+									appId: appId,
 									pageNum: pageNum,
+									appsRemaining: appIds.length,
 								});
+								// Move on to the next app
+								processNextApp();
 							}
 						}
 					}
@@ -104,16 +147,20 @@ class Collector {
 		 * Requeue a page if we aren't over the retries limit
 		 * @param {number} pageNum - The number of the page to requeue
 		 */
-		function requeue(pageNum) {
-			self.retries++;
-			if (self.retries < self.options.maxRetries) {
-				queue(pageNum);
+		function requeue(appId, pageNum) {
+			self.apps[appId].retries++;
+			if (self.apps[appId].retries < self.options.maxRetries) {
+				queue(appId, pageNum);
 			} else {
+				// Emit the 'done collecting' event with an error
 				self.emitter.emit('done collecting', {
-					appId: self.appId,
+					appId: appId,
 					pageNum: pageNum,
+					appsRemaining: appIds.length,
 					error: new Error('Retry limit reached'),
 				});
+				// Move on to the next app
+				processNextApp();
 			}
 		}
 	}

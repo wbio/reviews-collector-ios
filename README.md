@@ -8,9 +8,9 @@
 
 ```javascript
 // Create our Collector
-var Collector = require('reviews-collector-ios');
-// Create an instance of Collector to get reviews of Google Maps and only parse 2 pages max
-var collector = new Collector('585027354', { maxPages: 2 });
+const Collector = require('reviews-collector-ios');
+// Create an instance of Collector to get reviews of Google Maps and MapQuest and only parse 2 pages max
+const collector = new Collector(['585027354', '316126557'], { maxPages: 2 });
 
 // Do something when we parse a review
 collector.on('review', (result) => {
@@ -19,16 +19,22 @@ collector.on('review', (result) => {
 
 // Do something when we finish parsing a page of reviews
 collector.on('page complete', (result) => {
-	console.log(`Finished page ${result.pageNum} and found ${result.reviews.length} reviews`);
+	console.log(`Finished page ${result.pageNum} of ${result.appId} and found ${result.reviews.length} reviews`);
 });
 
-// Do something when we are done parsing
+// Do something when we are done parsing an app
 collector.on('done collecting', (result) => {
 	if (result.error) {
 		console.error('Stopped collecting because something went wrong');
 	} else {
 		console.log(`Finished collecting reviews for ${result.appId}`);
 	}
+});
+
+// Exit once we are done with all of the apps
+collector.on('done with apps', () => {
+	console.log('Finished collecting reviews for all of the apps');
+	process.exit();
 });
 
 // Start collecting reviews
@@ -42,16 +48,19 @@ First, create a `Collector` prototype by requiring `reviews-collector-ios`
 var Collector = require('reviews-collector-ios');
 ```
 
-Next, create an `Collector` instance using the `new` keyword and passing an app ID and an options object
+Next, create an `Collector` instance using the `new` keyword and passing an app ID (or an array of app IDs) and an options object
 
 ```javascript
-var collector = new Collector('585027354', { maxPages: 2 });
+// The app Id argument can be a single app ID string...
+var singleAppCollector = new Collector('585027354', { maxPages: 2 });
+// ...or an array of app ID strings
+var multiAppCollector = new Collector(['585027354', '316126557'], { maxPages: 2 });
 ```
 
 Where the arguments are:
 
-- `App ID`: The portion after the `/id` in the iTunes URL (e.g. the app ID for this URL - `https://itunes.apple.com/us/app/google-maps-real-time-navigation/id585027354?mt=8` - would be `585027354`)
-- `Options`: An object with any (or none) of the following properties:
+- `App ID` *(string|string[])*: The app ID is the portion after the `/id` in the iTunes URL (e.g. the app ID for this URL - `https://itunes.apple.com/us/app/google-maps-real-time-navigation/id585027354?mt=8` - would be `585027354`). You can pass a single app ID as a string, or multiple app IDs as an array of strings
+- `Options` *(Object)*: An object with any (or none) of the following properties:
   - `maxPages` *(Default 5)*: The maximum number of pages of reviews to parse. Use 0 for unlimited
   - `userAgent` *(Default iTunes/12.1.2 (Macintosh; OS X 10.10.3) AppleWebKit/0600.5.17)*: The user agent string to use when making requests
   - `delay` *(Default 1000)*: The delay (in milliseconds) between page requests
@@ -69,7 +78,7 @@ collector.on('<EVENT NAME>', function (result) {
 
 Where the event name is one of:
 
-- `review`
+- `'review'`
   - Fires when: A review is parsed from the page
   - Emits:
 
@@ -80,7 +89,7 @@ Where the event name is one of:
 		review: { /* Review object */ }
 	}
     ```
-- `page complete`
+- `'page complete'`
   - Fires when: A page of reviews has been parsed
   - Emits:
 
@@ -91,20 +100,24 @@ Where the event name is one of:
 		reviews: [ /* Review objects */ ]
 	}
     ```
-- `done collecting`
-  - Fires when: One of the following happens:
-     - The collector's `maxPages` limit is reached
+- `'done collecting'`
+  - Fires when: The collector has finished collecting reviews for a particular app for one of the following reasons:
+     - The collector's `maxPages` limit is reached for an app
      - The collector reaches the last page of reviews for the app
-     - The collector's `maxRetries` limit is reached
+     - The collector's `maxRetries` limit is reached for an app
   - Emits:
 
     ```javascript
 	{
 		appId: '<APP_ID>',
 		pageNum: '<PAGE_NUMBER>',
+		appsRemaining: 0, // # of apps left in queue
 		error: undefined || { /* Error object */ }
 	}
     ```
+- `'done with apps'`
+  - Fires when: Processing has completed for all of the apps
+  - Emits: Nothing
 
 
 ## Starting the Collector

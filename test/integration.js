@@ -13,8 +13,8 @@ describe('integration testing', () => {
 		let hadError;
 
 		before((done) => {
-			collector.on('page complete', (pageReviews) => {
-				result = pageReviews;
+			collector.on('page complete', (pageResult) => {
+				result = pageResult;
 				done();
 			});
 
