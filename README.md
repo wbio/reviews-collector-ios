@@ -8,9 +8,9 @@
 
 ```javascript
 // Create our Collector
-var Collector = require('reviews-collector-ios');
-// Create an instance of Collector to get reviews of Google Maps and only parse 2 pages max
-var collector = new Collector('585027354', { maxPages: 2 });
+const Collector = require('reviews-collector-ios');
+// Create an instance of Collector to get reviews of Google Maps and MapQuest and only parse 2 pages max
+const collector = new Collector(['585027354', '316126557'], { maxPages: 2 });
 
 // Do something when we parse a review
 collector.on('review', (result) => {
@@ -19,16 +19,22 @@ collector.on('review', (result) => {
 
 // Do something when we finish parsing a page of reviews
 collector.on('page complete', (result) => {
-	console.log(`Finished page ${result.pageNum} and found ${result.reviews.length} reviews`);
+	console.log(`Finished page ${result.pageNum} of ${result.appId} and found ${result.reviews.length} reviews`);
 });
 
-// Do something when we are done parsing
+// Do something when we are done parsing an app
 collector.on('done collecting', (result) => {
 	if (result.error) {
 		console.error('Stopped collecting because something went wrong');
 	} else {
 		console.log(`Finished collecting reviews for ${result.appId}`);
 	}
+});
+
+// Exit once we are done with all of the apps
+collector.on('done with apps', () => {
+	console.log('Finished collecting reviews for all of the apps');
+	process.exit();
 });
 
 // Start collecting reviews
