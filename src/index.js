@@ -97,7 +97,7 @@ class Collector {
 							self.retries[appId] = 0;
 							// Queue the next page if we're allowed
 							const nextPage = pageNum + 1;
-							if (converted.reviews.length > 0 && nextPage < self.options.maxPages - 1) {
+							if (converted.reviews.length > 0 && nextPage < self.options.maxPages) {
 								queue(appId, nextPage);
 							} else {
 								self.emitter.emit('done collecting', {
