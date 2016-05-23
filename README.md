@@ -62,6 +62,9 @@ Where the arguments are:
 - `App ID` *(string|string[])*: The app ID is the portion after the `/id` in the iTunes URL (e.g. the app ID for this URL - `https://itunes.apple.com/us/app/google-maps-real-time-navigation/id585027354?mt=8` - would be `585027354`). You can pass a single app ID as a string, or multiple app IDs as an array of strings
 - `Options` *(Object)*: An object with any (or none) of the following properties:
   - `maxPages` *(Default 5)*: The maximum number of pages of reviews to parse. Use 0 for unlimited
+  - `checkBeforeContinue` *(Default false)*: When true, the `page complete` event will have both a `continue` and a `stop` function as properties of the object emitted on the event (details below). One of these must be called before the collector will proceed. This is useful when you want to, for example, check to see if the reviews already exist in your database or if they were created in the last X days, etc. **Note:** When this is set to true, `maxPages` will be ignored
+     - `continue()` - Keep processing this app if possible
+     - `stop()` - Stop processing this app and move onto the next one, if applicable
   - `userAgent` *(Default iTunes/12.1.2 (Macintosh; OS X 10.10.3) AppleWebKit/0600.5.17)*: The user agent string to use when making requests
   - `delay` *(Default 1000)*: The delay (in milliseconds) between page requests
   - `maxRetries` *(Default 3)*: The maximum number of times to retry a page that could not be parsed before giving up
@@ -97,7 +100,10 @@ Where the event name is one of:
 	{
 		appId: '<APP_ID>',
 		pageNum: '<PAGE_NUMBER>',
-		reviews: [ /* Review objects */ ]
+		reviews: [ /* Review objects */ ],
+		// If the 'checkBeforeContinue' option is set to true:
+		continue: function() { /* Continue processing app */ },
+		stop: function() { /* Stop processing app */ }
 	}
     ```
 - `'done collecting'`
@@ -133,6 +139,4 @@ The Collector will then collect reviews until it reaches one of the stop points 
 ## To Do:
 
 - Use request instead of node-webcrawler
-- Allow for multiple app IDs in a single Collector (create a map of appIDs + emit the appId)
-- Allow user to determine whether or not to keep going after each page (if desired)
 - Move these to GitHub Issues
