@@ -142,9 +142,3 @@ You can find a few examples of using the module within the `/examples` folder:
 - `single_app.js` - A basic example of how to collect reviews for a single app using `maxPages` to determine page depth
 - `multi_app.js` - An example of collecting reviews for multiple apps using `maxPages` to determine page depth
 - `check_before_continue.js` - An example of collecting reviews for multiple apps using `checkBeforeContinue` to determine page depth (based on review date)
-
-
-## To Do:
-
-- Use request instead of node-webcrawler
-- Move these to GitHub Issues
