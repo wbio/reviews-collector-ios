@@ -103,7 +103,7 @@ class Collector {
 					uri: url,
 					headers: {
 						'User-Agent': self.options.userAgent,
-						'X-Apple-Store-Front': '143441-1', // TODO: Allow for multiple countries
+						'X-Apple-Store-Front': '143441-1',
 						'X-Apple-Tz': '-14400',
 					},
 				});
@@ -268,7 +268,7 @@ function getReviews(reviewElems, appId, pageNum, emitter) {
 		const review = {};
 		review.appId = appId;
 		review.os = 'iOS';
-		review.device = 'tbd'; // TODO - Parse this info
+		review.device = 'tbd';
 		review.type = 'review';
 		// Review Title
 		review.title = getReviewTitle(reviewElem);
