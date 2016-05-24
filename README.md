@@ -1,6 +1,7 @@
 # reviews-collector-ios
 [![Build Status](https://travis-ci.org/wbio/reviews-collector-ios.svg?branch=master)](https://travis-ci.org/wbio/reviews-collector-ios)
 [![Code Climate](https://codeclimate.com/github/wbio/reviews-collector-ios/badges/gpa.svg)](https://codeclimate.com/github/wbio/reviews-collector-ios)
+[![Test Coverage](https://codeclimate.com/github/wbio/reviews-collector-ios/badges/coverage.svg)](https://codeclimate.com/github/wbio/reviews-collector-ios/coverage)
 
 ---
 
