@@ -69,7 +69,7 @@ describe('unit testing', () => {
 
 		it('should parse a valid response object into an array of reviews', (done) => {
 			validObjPromise.then((validObj) => {
-				const converted = Collector.__get__('objectToReviews')(validObj, 'an.app.id', 0, fakeEmitter);
+				const converted = Collector.__get__('objectToReviews')(validObj, 'an.app.id', 0, fakeEmitter.emit);
 				expect(converted).to.be.an('object');
 				expect(converted).to.have.a.property('reviews');
 				expect(converted).to.not.have.a.property('error');
@@ -81,7 +81,7 @@ describe('unit testing', () => {
 
 		it('should parse a valid response object with no reviews into an empty array of reviews', (done) => {
 			noReviewsObjPromise.then((noReviewsObj) => {
-				const converted = Collector.__get__('objectToReviews')(noReviewsObj, 'an.app.id', 0, fakeEmitter);
+				const converted = Collector.__get__('objectToReviews')(noReviewsObj, 'an.app.id', 0, fakeEmitter.emit);
 				expect(converted).to.be.an('object');
 				expect(converted).to.have.a.property('reviews');
 				expect(converted).to.not.have.a.property('error');
@@ -93,7 +93,7 @@ describe('unit testing', () => {
 
 		it('should log an error when given an invalid response object', (done) => {
 			invalidObjPromise.then((invalidObj) => {
-				const converted = Collector.__get__('objectToReviews')(invalidObj, 'an.app.id', 0, fakeEmitter);
+				const converted = Collector.__get__('objectToReviews')(invalidObj, 'an.app.id', 0, fakeEmitter.emit);
 				expect(converted).to.be.an('object');
 				expect(converted).to.have.a.property('error');
 				done();
@@ -103,11 +103,9 @@ describe('unit testing', () => {
 		it('should emit a "review" event for each review', (done) => {
 			// Set up our spy on the event emitter
 			const emitterSpy = sinon.spy();
-			const emitter = new EventEmitter();
-			emitter.on('review', emitterSpy);
 			// Call the method
 			validObjPromise.then((validObj) => {
-				Collector.__get__('objectToReviews')(validObj, 'an.app.id', 0, emitter);
+				Collector.__get__('objectToReviews')(validObj, 'an.app.id', 0, emitterSpy);
 				expect(emitterSpy.callCount).to.equal(25);
 				done();
 			});
