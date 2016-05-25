@@ -66,9 +66,6 @@ describe('integration testing', () => {
 			});
 			const numReviews = result.reviews.length;
 			// Check all of the mandatory fields
-			expect(fields.appId).to.equal(numReviews);
-			expect(fields.os).to.equal(numReviews);
-			expect(fields.device).to.equal(numReviews);
 			expect(fields.type).to.equal(numReviews);
 			expect(fields.id).to.equal(numReviews);
 			expect(fields.date).to.equal(numReviews);
