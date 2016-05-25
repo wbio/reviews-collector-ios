@@ -42,10 +42,6 @@ describe('integration testing', () => {
 		it('should include values for (almost) all fields', () => {
 			expect(_.isArray(result.reviews)).to.be.true;
 			const fields = {
-				appId: 0,
-				os: 0,
-				device: 0,
-				type: 0,
 				id: 0,
 				date: 0,
 				rating: 0,
