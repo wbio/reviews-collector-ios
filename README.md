@@ -88,6 +88,7 @@ Where the event name is one of:
 
     ```javascript
 	{
+		os: 'iOS',
 		appId: '<APP_ID>',
 		pageNum: '<PAGE_NUMBER>',
 		review: { /* Review object */ }
@@ -99,6 +100,7 @@ Where the event name is one of:
 
     ```javascript
 	{
+		os: 'iOS',
 		appId: '<APP_ID>',
 		pageNum: '<PAGE_NUMBER>',
 		reviews: [ /* Review objects */ ],
@@ -116,6 +118,7 @@ Where the event name is one of:
 
     ```javascript
 	{
+		os: 'iOS',
 		appId: '<APP_ID>',
 		pageNum: '<PAGE_NUMBER>',
 		appsRemaining: 0, // # of apps left in queue
@@ -124,7 +127,13 @@ Where the event name is one of:
     ```
 - `'done with apps'`
   - Fires when: Processing has completed for all of the apps
-  - Emits: Nothing
+  - Emits:
+
+    ```javascript
+	{
+		os: 'iOS'
+	}
+    ```
 
 
 ## Starting the Collector
