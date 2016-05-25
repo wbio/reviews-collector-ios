@@ -283,7 +283,6 @@ function getReviews(reviewElems, appId, pageNum, emit) {
 	const reviews = [];
 	_.forEach(reviewElems, (reviewElem) => {
 		const review = {};
-		review.type = 'review';
 		// Review Title
 		review.title = getReviewTitle(reviewElem);
 		// Rating
