@@ -236,7 +236,7 @@ class Collector {
 		function emit(event, obj) {
 			const toEmit = obj || {};
 			// Add the OS to the emit message
-			toEmit.os = 'Android';
+			toEmit.os = 'iOS';
 			self.emitter.emit(event, toEmit);
 		}
 	}
