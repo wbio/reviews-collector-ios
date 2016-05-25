@@ -88,10 +88,16 @@ Where the event name is one of:
 
     ```javascript
 	{
-		os: 'iOS',
-		appId: '<APP_ID>',
-		pageNum: '<PAGE_NUMBER>',
-		review: { /* Review object */ }
+		os: 'iOS', // The OS of the app
+		appId: '585027354', // The ID of the app
+		pageNum: 3, // The page that the review was pulled from
+		review: {
+			id: '1383547048', // The unique review ID
+			date: 'Wed May 25 2016 04:00:00 GMT-0400 (EDT)', // The date of the review (as a Date object)
+			rating: 5, // The star rating given in the review
+			title: 'Great app', // The (optional) title of the review
+			text: 'This app is my most favorite' // The (optional) body of the review
+		}
 	}
     ```
 - `'page complete'`
@@ -100,13 +106,15 @@ Where the event name is one of:
 
     ```javascript
 	{
-		os: 'iOS',
-		appId: '<APP_ID>',
-		pageNum: '<PAGE_NUMBER>',
+		os: 'iOS', // The OS of the app
+		appId: '585027354', // The ID of the app
+		pageNum: 3, // The page that the review was pulled from
 		reviews: [ /* Review objects */ ],
+		firstReviewTime: 'Wed May 23 2016 04:00:00 GMT-0400 (EDT)', // The timestamp of the oldest review on the page (as a Date object)
+		lastReviewTime: 'Wed May 25 2016 04:00:00 GMT-0400 (EDT)', // The timestamp of the newest review on the page (as a Date object)
 		// If the 'checkBeforeContinue' option is set to true:
-		continue: function() { /* Continue processing app */ },
-		stop: function() { /* Stop processing app */ }
+		continue: function() {}, // Continue processing reviews for the app
+		stop: function() {} // Stop processing the app
 	}
     ```
 - `'done collecting'`
@@ -118,9 +126,9 @@ Where the event name is one of:
 
     ```javascript
 	{
-		os: 'iOS',
-		appId: '<APP_ID>',
-		pageNum: '<PAGE_NUMBER>',
+		os: 'iOS', // The OS of the app
+		appId: '585027354', // The ID of the app
+		pageNum: 3, // The page that the review was pulled from
 		appsRemaining: 0, // # of apps left in queue
 		error: undefined || { /* Error object */ }
 	}
@@ -131,7 +139,7 @@ Where the event name is one of:
 
     ```javascript
 	{
-		os: 'iOS'
+		os: 'iOS' // The OS of the app
 	}
     ```
 
